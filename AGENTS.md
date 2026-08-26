@@ -32,6 +32,7 @@ PhishGuard is a provider-independent phishing detection system for emails. The p
 - Explain significant architectural changes before implementing
 - Type hints on all public functions
 - Docstrings (Google style) for classes and public methods
+- Clear and professional naming of variables and functions/methods/etc for readability and maintainability
 
 ### Module Structure
 
