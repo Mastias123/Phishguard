@@ -11,15 +11,13 @@ cd phishguard
 python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install & test
+# Install and run checks
 pip install -e ".[dev]"
 phishguard test
 
-# Run local analysis server
-phishguard server
+# Analyze a raw email file
+phishguard analyze samples/example.eml
 ```
-
-Visit: http://localhost:8000/docs
 
 ## Project Structure
 
@@ -29,7 +27,7 @@ backend/phishguard/
 ├── providers/         # Email provider adapters
 ├── analyzers/         # Phishing detection logic
 ├── scoring/           # Risk scoring engine
-├── api/               # Analysis API
+├── api/               # Future API layer (Phase 5)
 └── cli.py             # CLI interface
 ```
 
@@ -37,46 +35,51 @@ backend/phishguard/
 
 - ✅ Email parsing (MIME, headers, links)
 - ✅ Risk scoring framework
-- ✅ CLI testing interface
-- ✅ Local API server
-- 🔜 Phishing analyzers (Phase 2+)
+- ✅ CLI test command (`phishguard test`)
+- ✅ CLI analysis command (`phishguard analyze <file>`)
+- ✅ Authentication analyzer (SPF/DKIM/DMARC)
+- ✅ Sender analyzer (impersonation/domain mismatch)
+- ✅ URL analyzer (suspicious links and redirects)
+- 🔜 Content analyzer (Phase 3 pending)
 
 ## Detection Signals
 
 Analyzes multiple indicators:
-- **Authentication**: SPF, DKIM, DMARC
-- **Sender**: Domain mismatches, impersonation
-- **URLs**: Suspicious links, redirects
-- **Content**: Urgency language, credential requests
-
-## Example
-
-```
-93/100 — HIGH RISK
-Brand impersonation • Sender domain mismatch • DKIM error • Suspicious URL
-```
+- **Authentication**: SPF, DKIM, DMARC outcomes
+- **Sender**: Domain mismatches, impersonation patterns
+- **URLs**: Suspicious links, redirects, host mismatches
+- **Content**: Urgency language, credential requests (pending)
 
 ## Usage
 
-**CLI Testing:**
+**CLI:**
 ```bash
-phishguard test          # Run tests
-phishguard --help        # Show commands
+phishguard test                         # Run basic checks
+phishguard analyze samples/email.eml    # Analyze one raw .eml file
+phishguard --help                       # Show commands
 ```
 
 **Python API:**
 ```python
 from phishguard.mail.parser import MimeParser
 from phishguard.scoring.scorer import RiskScorer
+from phishguard.analyzers.authentication import AuthenticationAnalyzer
+from phishguard.analyzers.sender import SenderAnalyzer
+from phishguard.analyzers.url import URLAnalyzer
 
 email = MimeParser.parse(mime_content)
-result = RiskScorer([]).score(email)
+scorer = RiskScorer([
+    AuthenticationAnalyzer(),
+    SenderAnalyzer(),
+    URLAnalyzer(),
+])
+result = scorer.score(email)
 print(result.get_formatted_output())
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure:
+Copy `.env.example` to `.env` and configure provider credentials as needed.
 
 ```env
 # IMAP (One.com, etc.)
@@ -93,38 +96,37 @@ AZURE_CLIENT_ID=your-client-id
 ## Testing
 
 ```bash
-phishguard test                                    # CLI tests
-python backend/tests/test_components.py           # Component tests
-pytest backend/tests/ -v                          # Full test suite
-pytest --cov=phishguard backend/tests/           # With coverage
+phishguard test                           # CLI checks
+python backend/tests/test_components.py   # Component tests
+pytest backend/tests/ -v                  # Full test suite
 ```
 
 ## Documentation
 
-- [LOCAL_TESTING.md](docs/LOCAL_TESTING.md) - Local testing guide
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design
-- [DEVELOPMENT.md](docs/DEVELOPMENT.md) - Dev workflow
+- [docs/LOCAL_TESTING.md](docs/LOCAL_TESTING.md) - Local testing guide
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Dev workflow
 - [AGENTS.md](AGENTS.md) - Copilot configuration
 
 ## Contributing
 
 1. Create feature branch: `git checkout -b feature/name`
 2. Make focused changes
-3. Write tests: `pytest`
+3. Run tests
 4. Commit with clear messages
 5. Open PR
 
-**No automatic commits/pushes** - keep control.
+No automatic commits/pushes: keep manual control.
 
 ## Roadmap
 
-- **Phase 1** ✅ Setup & documentation  
-- **Phase 2** Email parsing & link extraction  
-- **Phase 3** Phishing analyzers  
-- **Phase 4** IMAP provider  
-- **Phase 5** Analysis API  
-- **Phase 6** Microsoft Graph  
-- **Phase 7** Firefox extension  
+- **Phase 1** ✅ Setup and documentation
+- **Phase 2** ✅ Email parsing and link extraction
+- **Phase 3** 🟨 Phishing analyzers (content analyzer pending)
+- **Phase 4** IMAP provider
+- **Phase 5** Analysis API
+- **Phase 6** Microsoft Graph provider
+- **Phase 7** Firefox extension
 
 ## License
 

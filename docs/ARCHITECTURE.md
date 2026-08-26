@@ -39,17 +39,15 @@ Email Source (IMAP/Graph)
 - `base.py` - BaseAnalyzer interface and DetectionSignal
 - `authentication.py` - SPF/DKIM/DMARC (Phase 3)
 - `sender.py` - Sender analysis (Phase 3)
-- `urls.py` - URL/link analysis (Phase 3)
-- `content.py` - Content patterns (Phase 3)
-- `attachments.py` - Attachment analysis (Phase 3)
+- `url.py` - URL/link analysis (Phase 3)
+- `content.py` - Content patterns (Phase 3, pending)
 
 **`scoring/`** - Risk scoring
 - `signals.py` - DetectionReason, AnalysisResult models
 - `scorer.py` - RiskScorer combining signals
 
-**`api/`** - HTTP API layer
+**`api/`** - HTTP API layer (future)
 - `app.py` - FastAPI application (Phase 5)
-- `routes.py` - API endpoints (Phase 5)
 
 ## Detection Signals
 
@@ -81,18 +79,9 @@ Email Source (IMAP/Graph)
 
 ## Local Testing
 
-Start the local analysis server:
+Analyze raw email files locally from CLI:
 ```bash
-phishguard server
-```
-
-API available at: http://localhost:8000/docs
-
-**Test with curl:**
-```bash
-curl -X POST http://localhost:8000/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"mime_content": "From: test@example.com\n..."}'
+phishguard analyze samples/example.eml
 ```
 
 ## Development Phases

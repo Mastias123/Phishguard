@@ -48,7 +48,6 @@ backend/phishguard/
 ├── providers/      # Email provider interfaces
 ├── analyzers/      # Phishing detection logic
 ├── scoring/        # Risk scoring
-├── api/            # API layer
 └── cli.py          # CLI interface
 
 backend/tests/
@@ -98,8 +97,8 @@ Add to `backend/phishguard/analyzers/__init__.py` and test.
 | Phase | Status | Tasks |
 |-------|--------|-------|
 | 1 | ✅ | Setup & docs |
-| 2 | 📝 | MIME parsing |
-| 3 | 📝 | Analyzers |
+| 2 | ✅ | MIME parsing |
+| 3 | 🟨 | Analyzers (auth/sender/url done, content pending) |
 | 4 | 📝 | IMAP provider |
 | 5 | 📝 | Analysis API |
 | 6 | 📝 | Microsoft Graph |
@@ -113,7 +112,7 @@ IMAP: `imapclient`
 
 Microsoft: `azure-identity`, `msgraph-core`
 
-API: `fastapi`, `uvicorn`
+API (future): `fastapi`, `uvicorn`
 
 ## Resources
 
@@ -121,4 +120,3 @@ API: `fastapi`, `uvicorn`
 - [Email RFC 5322](https://tools.ietf.org/html/rfc5322)
 - [MIME RFC 2045](https://tools.ietf.org/html/rfc2045)
 - [SPF/DKIM/DMARC](https://tools.ietf.org/html/rfc7208)
-- [FastAPI](https://fastapi.tiangolo.com/)
