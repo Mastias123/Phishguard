@@ -22,14 +22,15 @@ class URLAnalyzer(BaseAnalyzer):
 
     TRACKING_REDIRECT_HOSTS = {
         "zohoinsights.com",
-        "mailchimp.com",
-        "sendgrid.net",
+        "sendgrid.net",  # mailchimp.com moved to MARKETING_INFRA_HOSTS
     }
 
     MARKETING_INFRA_HOSTS = {
         "list-manage.com",
+        "mailchimp.com",      # Common Mailchimp redirect/login domain
         "mailchimpapp.com",
         "mailchimpapp.net",
+        "login.mailchimp.com",  # Mailchimp login/signup
         "mcdlv.net",
         "bloomreach.com",
     }
@@ -74,16 +75,15 @@ class URLAnalyzer(BaseAnalyzer):
                 )
 
             if self._domain_matches_any(host, self.TRACKING_REDIRECT_HOSTS):
-                confidence = 0.35 if all_auth_pass else 0.6
-                severity = "low" if all_auth_pass else "medium"
-                signals.append(
-                    DetectionSignal(
-                        signal_type="url",
-                        confidence=confidence,
-                        reason=f"Link uses a known tracking/redirect host: {host}.",
-                        severity=severity,
+                if not self._is_expected_marketing_infra(host, all_auth_pass):
+                    signals.append(
+                        DetectionSignal(
+                            signal_type="url",
+                            confidence=0.55,
+                            reason=f"Link uses a known tracking/redirect host: {host}.",
+                            severity="medium",
+                        )
                     )
-                )
 
         signals.extend(self._build_mismatch_signals(mismatch_hosts, sender_domain, all_auth_pass))
 
@@ -107,6 +107,8 @@ class URLAnalyzer(BaseAnalyzer):
 
     @classmethod
     def _is_expected_marketing_infra(cls, host: str, all_auth_pass: bool) -> bool:
+        # Only trust marketing infrastructure when auth fully passes.
+        # This is a narrow exception: known platforms used by legitimate bulk mailers.
         if not all_auth_pass:
             return False
         return cls._domain_matches_any(host, cls.MARKETING_INFRA_HOSTS)
@@ -154,9 +156,9 @@ class URLAnalyzer(BaseAnalyzer):
             seen_reg_domains.add(reg)
             unique_hosts.append(host)
 
-        max_signals = 1 if all_auth_pass else 3
-        confidence = 0.45 if all_auth_pass else 0.85
-        severity = "low" if all_auth_pass else "high"
+        max_signals = 3
+        confidence = 0.75
+        severity = "medium"
 
         signals: List[DetectionSignal] = []
         for host in unique_hosts[:max_signals]:

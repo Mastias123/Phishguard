@@ -69,19 +69,19 @@ class SenderAnalyzer(BaseAnalyzer):
             )
 
         # Reply-To mismatch can indicate redirection to attacker mailbox.
+        # Note: Auth passing (SPF/DKIM/DMARC) only proves authentic infrastructure,
+        # not trustworthiness. An attacker can have a legitimate account.
         reply_to_domain = self._extract_domain(email.headers.reply_to)
         if reply_to_domain and reply_to_domain != sender_domain:
-            confidence = 0.35 if all_auth_pass else 0.75
-            severity = "low" if all_auth_pass else "medium"
             signals.append(
                 DetectionSignal(
                     signal_type="sender",
-                    confidence=confidence,
+                    confidence=0.65,
                     reason=(
                         f"Reply-To domain '{reply_to_domain}' does not match "
                         f"sender domain '{sender_domain}'."
                     ),
-                    severity=severity,
+                    severity="medium",
                 )
             )
 

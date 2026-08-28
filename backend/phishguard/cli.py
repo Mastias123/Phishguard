@@ -54,6 +54,7 @@ def cmd_test(args: list) -> int:
         from phishguard.analyzers.authentication import AuthenticationAnalyzer
         from phishguard.analyzers.sender import SenderAnalyzer
         from phishguard.analyzers.url import URLAnalyzer
+        from phishguard.analyzers.content import ContentAnalyzer
         from phishguard.scoring.scorer import RiskScorer
         
         print("✓ Core modules imported successfully")
@@ -75,6 +76,7 @@ This is a test email."""
             AuthenticationAnalyzer(),
             SenderAnalyzer(),
             URLAnalyzer(),
+            ContentAnalyzer(),
         ])
         result = scorer.score(email_msg)
         print(f"✓ Risk score computed: {result.score}/100 ({result.get_risk_level()})")
@@ -118,6 +120,7 @@ def cmd_analyze(args: list) -> int:
         from phishguard.analyzers.authentication import AuthenticationAnalyzer
         from phishguard.analyzers.sender import SenderAnalyzer
         from phishguard.analyzers.url import URLAnalyzer
+        from phishguard.analyzers.content import ContentAnalyzer
         from phishguard.scoring.scorer import RiskScorer
         
         email_msg = MimeParser.parse(mime_content)
@@ -127,6 +130,7 @@ def cmd_analyze(args: list) -> int:
             AuthenticationAnalyzer(),
             SenderAnalyzer(),
             URLAnalyzer(),
+            ContentAnalyzer(),
         ])
         result = scorer.score(email_msg)
         
