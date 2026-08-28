@@ -92,17 +92,30 @@ class NewAnalyzer(BaseAnalyzer):
 
 Add to `backend/phishguard/analyzers/__init__.py` and test.
 
+## Scoring Architecture
+
+**Key Principle**: Authentication headers (SPF/DKIM/DMARC passing) prove that an email 
+was genuinely sent through the infrastructure it claims to use, but do NOT prove the 
+sender is trustworthy. Attackers can have legitimate accounts on services like 
+Constant Contact or Mailchimp.
+
+**Scoring Strategy**:
+- Don't dampen detection signals when auth passes
+- Use content analysis to distinguish legitimate bulk mail from phishing
+- Trust marketing infrastructure hosts (Mailchimp, etc) only as infrastructure identification
+- Stack multiple signal types (auth + sender + URL + content) for robust scoring
+
 ## Phases
 
 | Phase | Status | Tasks |
 |-------|--------|-------|
 | 1 | ✅ | Setup & docs |
 | 2 | ✅ | MIME parsing |
-| 3 | 🟨 | Analyzers (auth/sender/url done, content pending) |
+| 3 | ✅ | Analyzers (auth/sender/url/content - all complete) |
 | 4 | 📝 | IMAP provider |
 | 5 | 📝 | Analysis API |
 | 6 | 📝 | Microsoft Graph |
-| 7 | 📝 | Firefox ext |
+| 7 | 📝 | Firefox extension |
 
 ## Dependencies
 

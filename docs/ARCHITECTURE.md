@@ -37,10 +37,10 @@ Email Source (IMAP/Graph)
 
 **`analyzers/`** - Phishing detection
 - `base.py` - BaseAnalyzer interface and DetectionSignal
-- `authentication.py` - SPF/DKIM/DMARC (Phase 3)
-- `sender.py` - Sender analysis (Phase 3)
-- `url.py` - URL/link analysis (Phase 3)
-- `content.py` - Content patterns (Phase 3, pending)
+- `authentication.py` - SPF/DKIM/DMARC validation
+- `sender.py` - Sender domain/display name analysis
+- `url.py` - URL/link pattern analysis
+- `content.py` - Content pattern detection
 
 **`scoring/`** - Risk scoring
 - `signals.py` - DetectionReason, AnalysisResult models
@@ -51,18 +51,38 @@ Email Source (IMAP/Graph)
 
 ## Detection Signals
 
-**Authentication**: SPF/DKIM/DMARC failures
-**Sender**: Domain mismatches, brand impersonation
-**URLs**: Suspicious links, mismatched display text, redirects
-**Content**: Urgency language, account threats, password requests
+**Authentication**: SPF/DKIM/DMARC outcomes (pass/fail/error)
 
-## Risk Score
+**Sender**: 
+- Domain/display name mismatches
+- Brand impersonation
+- Reply-To mismatch with sender domain
+- Homoglyph attacks (Cyrillic/Latin mixing)
 
-- **0-20**: Safe
-- **21-40**: Low risk
-- **41-60**: Medium risk
-- **61-80**: High risk
-- **81-100**: Very high (likely phishing)
+**URLs**: 
+- Non-HTTPS schemes
+- Link host mismatches with sender domain
+- Suspicious keywords (login, verify, account, etc)
+- Tracking/redirect hosts (Mailchimp, SendGrid)
+
+**Content**:
+- Generic notification themes without tracking/order identifiers
+- Unicode obfuscation (soft hyphens, zero-width characters)
+- Credential requests (passwords, PINs, 2FA codes)
+- Threat/urgency language combined with action requests
+
+## Scoring Weights
+
+Signals are combined using weighted scoring:
+- **Authentication** (0.25): SPF/DKIM/DMARC validation
+- **Sender** (0.20): Domain/impersonation indicators  
+- **URL** (0.30): Link analysis (highest weight)
+- **Content** (0.15): Text patterns
+- **Attachment** (0.10): Reserved for Phase 8+
+
+**Key Design**: Authentication passing reduces concern about email infrastructure 
+but does NOT reduce concerns about sender trustworthiness, URLs, or content. 
+An attacker can have a legitimate Mailchimp account.
 
 ## Data Processing
 
@@ -87,11 +107,11 @@ phishguard analyze samples/example.eml
 ## Development Phases
 
 1. ✅ **Phase 1** - Repository setup
-2. **Phase 2** - Enhanced MIME parser
-3. **Phase 3** - Phishing analyzers
-4. **Phase 4** - IMAP provider
-5. **Phase 5** - Analysis API
-6. **Phase 6** - Microsoft Graph provider
-7. **Phase 7** - Firefox extension
-8. **Phase 8** - Background scanning
-9. **Phase 9** - Quarantine functionality
+2. ✅ **Phase 2** - Email models & MIME parsing
+3. ✅ **Phase 3** - Phishing analyzers (auth/sender/url/content)
+4. 📝 **Phase 4** - IMAP provider
+5. 📝 **Phase 5** - REST API
+6. 📝 **Phase 6** - Microsoft Graph provider
+7. 📝 **Phase 7** - Firefox extension
+8. 📝 **Phase 8** - Background scanning
+9. 📝 **Phase 9** - Quarantine functionality

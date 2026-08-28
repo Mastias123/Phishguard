@@ -38,17 +38,22 @@ backend/phishguard/
 - ✅ CLI test command (`phishguard test`)
 - ✅ CLI analysis command (`phishguard analyze <file>`)
 - ✅ Authentication analyzer (SPF/DKIM/DMARC)
-- ✅ Sender analyzer (impersonation/domain mismatch)
+- ✅ Sender analyzer (impersonation/domain mismatch/homoglyphs)
 - ✅ URL analyzer (suspicious links and redirects)
-- 🔜 Content analyzer (Phase 3 pending)
+- ✅ Content analyzer (urgency, credentials, obfuscation)
+- 🔜 IMAP provider (Phase 4)
+- 🔜 Microsoft Graph provider (Phase 6)
 
 ## Detection Signals
 
 Analyzes multiple indicators:
 - **Authentication**: SPF, DKIM, DMARC outcomes
-- **Sender**: Domain mismatches, impersonation patterns
-- **URLs**: Suspicious links, redirects, host mismatches
-- **Content**: Urgency language, credential requests (pending)
+- **Sender**: Domain mismatches, brand impersonation, homoglyph attacks
+- **URLs**: Suspicious links, redirects, host mismatches, tracking hosts
+- **Content**: Generic notifications, obfuscation patterns, credential requests, urgency language
+
+**Key Design Principle**: Auth passing (SPF/DKIM/DMARC) proves infrastructure authenticity,
+not sender trustworthiness. An attacker can have a legitimate Constant Contact account.
 
 ## Usage
 
@@ -66,15 +71,19 @@ from phishguard.scoring.scorer import RiskScorer
 from phishguard.analyzers.authentication import AuthenticationAnalyzer
 from phishguard.analyzers.sender import SenderAnalyzer
 from phishguard.analyzers.url import URLAnalyzer
+from phishguard.analyzers.content import ContentAnalyzer
 
 email = MimeParser.parse(mime_content)
 scorer = RiskScorer([
     AuthenticationAnalyzer(),
     SenderAnalyzer(),
     URLAnalyzer(),
+    ContentAnalyzer(),
 ])
 result = scorer.score(email)
-print(result.get_formatted_output())
+print(f"Risk: {result.score}/100 ({result.get_risk_level()})")
+for reason in result.reasons:
+    print(f"  • {reason.reason}")
 ```
 
 ## Configuration
