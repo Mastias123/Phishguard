@@ -113,6 +113,7 @@ pytest backend/tests/ -v                  # Full test suite
 ## Documentation
 
 - [docs/LOCAL_TESTING.md](docs/LOCAL_TESTING.md) - Local testing guide
+- [docs/EMAIL_ANALYSIS_GUIDE.md](docs/EMAIL_ANALYSIS_GUIDE.md) - How email risk is evaluated
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Dev workflow
 - [AGENTS.md](AGENTS.md) - Copilot configuration
