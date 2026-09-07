@@ -14,6 +14,7 @@ class DetectionSignal:
     confidence: float  # 0.0 to 1.0
     reason: str  # Human-readable explanation
     severity: str  # "low", "medium", "high"
+    evidence_group: Optional[str] = None  # Related findings contribute only their strongest score.
 
 
 class BaseAnalyzer(ABC):

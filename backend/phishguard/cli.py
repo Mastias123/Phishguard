@@ -106,7 +106,7 @@ def cmd_analyze(args: list) -> int:
     try:
         # Read email file
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, 'rb') as f:
                 mime_content = f.read()
         except FileNotFoundError:
             print(f"Error: File not found: {file_path}")

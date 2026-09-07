@@ -18,6 +18,8 @@ setup(
         "pydantic>=2.0.0",
         "python-dotenv>=1.0.0",
         "dnspython>=2.4.0",
+        "tldextract>=5.1.2,<6",
+        "idna>=3.4",
     ],
     extras_require={
         "imap": ["imapclient>=3.0.0"],

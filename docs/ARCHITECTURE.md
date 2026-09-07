@@ -1,117 +1,111 @@
 # PhishGuard Architecture
 
-Provider-independent phishing detection system for emails.
+PhishGuard analyzes raw email locally and produces explainable, deterministic
+phishing-risk scores. It reports findings; it does not automatically delete mail.
 
-**Philosophy**: Detect → Warn → User Decides (never auto-delete)
+## Current Processing Flow
 
-## System Flow
-
-```
-Email Source (IMAP/Graph)
+```text
+CLI reads raw MIME bytes
         ↓
-    MimeParser
+MimeParser: decoded headers, both body alternatives, structured links
         ↓
-   EmailMessage (normalized)
+EmailMessage
         ↓
-    Analyzers (parallel)
+Authentication / sender / URL / content analyzers
         ↓
-   DetectionSignals
+DetectionSignals with reasons and optional evidence groups
         ↓
-    RiskScorer
+RiskScorer: weighted contributions, grouping, category caps
         ↓
-  AnalysisResult (score + reasons)
-        ↓
-   CLI/API/Extension (user actions)
+AnalysisResult: score, risk band, reasons
 ```
 
-## Modules
+The scorer currently invokes analyzers sequentially. Provider retrieval, an HTTP
+analysis API, and a Firefox extension remain future integrations.
 
-**`mail/`** - Email models and parsing
-- `models.py` - EmailMessage, EmailHeaders, EmailBody, EmailAttachment
-- `parser.py` - MimeParser for MIME message parsing
+## Module Responsibilities
 
-**`providers/`** - Email provider adapters
-- `base.py` - BaseProvider interface
-- `imap.py` - IMAP implementation (Phase 4)
-- `microsoft_graph.py` - Microsoft Graph implementation (Phase 6)
+| Module | Responsibility |
+| --- | --- |
+| `mail/models.py` | Canonical headers, body, attachment, message, and structured-link models |
+| `mail/parser.py` | MIME/charset/header decoding, visible text, link labels and local context |
+| `mail/html_parser.py` | Local HTML text extraction and bounded anchor context |
+| `providers/base.py` | Future provider adapter interface |
+| `analyzers/base.py` | Analyzer interface and detection signals |
+| `analyzers/authentication.py` | Interpret reported authentication-header outcomes |
+| `analyzers/sender.py` | Configured organization claims and sender/address consistency |
+| `analyzers/url.py` | Link actions, displayed destinations, domain relationships, URL patterns |
+| `analyzers/link_context.py` | Sensitive action patterns and identity/destination combinations |
+| `analyzers/domains.py` | Offline PSL boundaries, host normalization, and explicit domain matching |
+| `analyzers/organizations.py` | Shared organization aliases, domains, countries, and scoped service relationships |
+| `analyzers/content.py` | Selected English content patterns and Unicode obfuscation |
+| `scoring/scorer.py` | Combine evidence without repeatedly counting grouped link findings |
+| `scoring/signals.py` | Analysis results, reasons, and risk-band labels |
+| `cli.py` | Read `.eml` files, invoke analyzers, and display results |
 
-**`analyzers/`** - Phishing detection
-- `base.py` - BaseAnalyzer interface and DetectionSignal
-- `authentication.py` - SPF/DKIM/DMARC validation
-- `sender.py` - Sender domain/display name analysis
-- `url.py` - URL/link pattern analysis
-- `content.py` - Content pattern detection
+Parsing remains independent of analyzer and scoring policy. The existing list of
+URL strings is retained alongside structured links so callers can migrate without
+losing basic link extraction. Both MIME alternatives contribute analysis text.
 
-**`scoring/`** - Risk scoring
-- `signals.py` - DetectionReason, AnalysisResult models
-- `scorer.py` - RiskScorer combining signals
+## Domain and Organization Context
 
-**`api/`** - HTTP API layer (future)
-- `app.py` - FastAPI application (Phase 5)
+Domain comparisons use an offline `tldextract` instance backed by its bundled
+Public Suffix List, with private suffixes enabled and runtime fetching/caching
+disabled. Registrable domains are compared for ordinary host relationships;
+configured service domains use explicit host boundaries. A domain containing a
+brand's name is not evidence that the brand owns it.
 
-## Detection Signals
+Sender and URL analyzers share optional `OrganizationProfile` configuration. A
+profile can name organization aliases, sender domains, expected country suffixes,
+and verified third-party service domains scoped to an action. The CLI uses default
+profiles; Python callers can supply the same custom set to both analyzers.
 
-**Authentication**: SPF/DKIM/DMARC outcomes (pass/fail/error)
+This configuration supports context without requiring every destination to match
+the sender's name. A sensitive action at an unexplained destination is evaluated
+with the claimed identity. Country suffixes add only weak, capped evidence after
+the required contextual conditions hold; language alone never sets a country
+expectation, and `.dk`/`.com` provide no safety credit.
 
-**Sender**: 
-- Domain/display name mismatches
-- Brand impersonation
-- Reply-To mismatch with sender domain
-- Homoglyph attacks (Cyrillic/Latin mixing)
+## Scoring Policy
 
-**URLs**: 
-- Non-HTTPS schemes
-- Link host mismatches with sender domain
-- Suspicious keywords (login, verify, account, etc)
-- Tracking/redirect hosts (Mailchimp, SendGrid)
+Each contribution starts with `confidence × category weight × 100`. Confidence
+and weights are hand-set heuristics; severity is a descriptive label.
 
-**Content**:
-- Generic notification themes without tracking/order identifiers
-- Unicode obfuscation (soft hyphens, zero-width characters)
-- Credential requests (passwords, PINs, 2FA codes)
-- Threat/urgency language combined with action requests
+| Category | Weight | Cap/handling |
+| --- | ---: | --- |
+| Authentication | 0.25 | Additive |
+| Sender | 0.20 | Additive |
+| URL | 0.30 | Related link evidence grouped |
+| Content | 0.15 | Additive |
+| Attachment | 0.10 | Reserved; no analyzer yet |
+| Link context | 0.50 | Strongest contribution, at most 50 points |
+| Geography | 0.05 | Strongest contribution, at most 2.5 points |
 
-## Scoring Weights
+Signals in the same evidence group count only their strongest contribution.
+Category handling then limits repeated link-context and geographic evidence. The
+final sum is truncated and capped at 100. This is not a calibrated probability;
+the existing lowest-band `SAFE` label does not certify legitimacy.
 
-Signals are combined using weighted scoring:
-- **Authentication** (0.25): SPF/DKIM/DMARC validation
-- **Sender** (0.20): Domain/impersonation indicators  
-- **URL** (0.30): Link analysis (highest weight)
-- **Content** (0.15): Text patterns
-- **Attachment** (0.10): Reserved for Phase 8+
+Passing authentication never subtracts from other evidence. Recognized service
+infrastructure does not disable contextual link checks. Profiles describe domain
+relationships, not the trustworthiness of every tenant or transaction.
 
-**Key Design**: Authentication passing reduces concern about email infrastructure 
-but does NOT reduce concerns about sender trustworthiness, URLs, or content. 
-An attacker can have a legitimate Mailchimp account.
+## Operational Limits
 
-## Data Processing
-
-1. **Email Retrieval** → Provider fetches raw MIME
-2. **Parsing** → MimeParser normalizes to EmailMessage
-3. **Analysis** → Analyzers examine for signals
-4. **Scoring** → RiskScorer combines signals → final score
-5. **Output** → CLI/API/Extension shows score + reasons
-
-## Authentication
-
-**IMAP**: App password or OAuth 2.0  
-**Microsoft Graph**: OAuth 2.0 required
-
-## Local Testing
-
-Analyze raw email files locally from CLI:
-```bash
-phishguard analyze samples/example.eml
-```
+Analysis performs no URL requests, redirect following, image loading, or live DNS
+authentication checks. Supplied authentication headers are not independently
+verified. HTML extraction is not browser rendering or OCR. Link-action matching
+supports selected Danish and English phrases; standalone content patterns remain
+English. Organization coverage depends on configuration. Attachment metadata is
+parsed but not risk-scored.
 
 ## Development Phases
 
-1. ✅ **Phase 1** - Repository setup
-2. ✅ **Phase 2** - Email models & MIME parsing
-3. ✅ **Phase 3** - Phishing analyzers (auth/sender/url/content)
-4. 📝 **Phase 4** - IMAP provider
-5. 📝 **Phase 5** - REST API
-6. 📝 **Phase 6** - Microsoft Graph provider
-7. 📝 **Phase 7** - Firefox extension
-8. 📝 **Phase 8** - Background scanning
-9. 📝 **Phase 9** - Quarantine functionality
+1. Complete: repository setup, email models, MIME parsing, and the four analyzers.
+2. Ongoing: rule coverage, false-positive regression tests, and score evaluation.
+3. Planned: IMAP provider, analysis API, Microsoft Graph, and Firefox extension.
+4. Later: background scanning and user-controlled quarantine.
+
+See [EMAIL_ANALYSIS_GUIDE.md](EMAIL_ANALYSIS_GUIDE.md) for configuration examples and
+[LOCAL_TESTING.md](LOCAL_TESTING.md) for validation guidance.

@@ -16,7 +16,13 @@ class RiskScorer:
         "url": 0.30,             # Suspicious URLs
         "content": 0.15,         # Urgency language, password requests
         "attachment": 0.10,      # Suspicious attachments
+        "link_context": 0.50,    # Combined action, identity, and destination evidence
+        "geography": 0.05,       # Weak supporting context, capped at 2.5 points
     }
+
+    # One contextual destination cannot be amplified by copying it or adding more links.
+    STRONGEST_ONLY_CATEGORIES = {"link_context", "geography"}
+    CONTRIBUTION_CAPS = {"geography": 2.5}
     
     def __init__(self, analyzers: List[BaseAnalyzer]):
         """Initialize scorer with list of analyzers.
@@ -41,6 +47,8 @@ class RiskScorer:
         for analyzer in self.analyzers:
             signals = analyzer.analyze(email)
             all_signals.extend(signals)
+
+        all_signals = self._select_independent_signals(all_signals)
         
         # Convert signals to reasons
         reasons: List[DetectionReason] = []
@@ -55,8 +63,7 @@ class RiskScorer:
             ))
             
             # Weight the signal
-            weight = self.SIGNAL_WEIGHTS.get(signal.signal_type, 0.1)
-            signal_contribution = signal.confidence * weight * 100
+            signal_contribution = self._signal_contribution(signal)
             total_score += signal_contribution
         
         # Normalize score to 0-100 range
@@ -70,6 +77,32 @@ class RiskScorer:
             reasons=reasons,
             summary=summary,
         )
+
+    @classmethod
+    def _signal_contribution(cls, signal: DetectionSignal) -> float:
+        weight = cls.SIGNAL_WEIGHTS.get(signal.signal_type, 0.1)
+        contribution = signal.confidence * weight * 100
+        return min(contribution, cls.CONTRIBUTION_CAPS.get(signal.signal_type, 100.0))
+
+    @classmethod
+    def _select_independent_signals(
+        cls, signals: List[DetectionSignal]
+    ) -> List[DetectionSignal]:
+        """Keep the strongest finding per evidence group and capped category."""
+        grouped = {}
+        for index, signal in enumerate(signals):
+            key = ("evidence", signal.evidence_group) if signal.evidence_group else ("signal", index)
+            previous = grouped.get(key)
+            if previous is None or cls._signal_contribution(signal) > cls._signal_contribution(previous):
+                grouped[key] = signal
+
+        selected = {}
+        for index, signal in enumerate(grouped.values()):
+            key = ("category", signal.signal_type) if signal.signal_type in cls.STRONGEST_ONLY_CATEGORIES else ("signal", index)
+            previous = selected.get(key)
+            if previous is None or cls._signal_contribution(signal) > cls._signal_contribution(previous):
+                selected[key] = signal
+        return list(selected.values())
     
     @staticmethod
     def _create_summary(score: int, reasons: List[DetectionReason]) -> str:
